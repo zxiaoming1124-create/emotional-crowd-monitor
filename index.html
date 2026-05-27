@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=1100" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Emotional Crowd Monitor V17</title>
   <style>
     :root{
@@ -197,17 +197,6 @@
     .matrix-axis-y{right:10px;top:38px;writing-mode:vertical-rl;transform:rotate(180deg)}
     .matrix-midline{display:none}
 
-    @media (max-width:1020px){
-      .shell{grid-template-columns:1fr;overflow:auto}
-      .stage-wrap{min-height:420px}
-    }
-    @media (max-width:680px){
-      body{overflow:auto;height:auto}
-      .page{padding:14px;height:auto;overflow:visible}
-      .subject{grid-template-columns:1fr}
-      .stats{grid-template-columns:1fr 1fr}
-      .stage-wrap{min-height:380px}
-    }
   </style>
 </head>
 <body>
@@ -490,7 +479,32 @@
       [bgCanvas,fxCanvas,graphCanvas,portraitCanvas,emotionMatrixCanvas].forEach(resizeCanvas);
       buildBackgroundData();
     }
-    window.addEventListener('resize', resizeAll);
+    function applyScale(){
+      var DESIGN_W=1100;
+      var vw=window.innerWidth;
+      var vh=window.innerHeight;
+      var page=document.querySelector('.page');
+      if(vw<DESIGN_W){
+        var scale=vw/DESIGN_W;
+        var h=Math.round(vh/scale);
+        page.style.position='fixed';
+        page.style.top='0';
+        page.style.left='0';
+        page.style.width=DESIGN_W+'px';
+        page.style.height=h+'px';
+        page.style.transform='scale('+scale+')';
+        page.style.transformOrigin='0 0';
+        document.documentElement.style.overflow='hidden';
+        document.body.style.overflow='hidden';
+        document.body.style.height=vh+'px';
+      } else {
+        page.style.cssText='';
+        document.documentElement.style.overflow='';
+        document.body.style.overflow='';
+        document.body.style.height='';
+      }
+    }
+    window.addEventListener('resize', function(){ applyScale(); resizeAll(); });
 
     function createSceneDecor(){
       sceneLayer.innerHTML = '';
@@ -1201,6 +1215,13 @@
       requestAnimationFrame(animate);
     }
 
+    stage.addEventListener('pointerdown', e=>{
+      const rect = stage.getBoundingClientRect();
+      mouse.x = ((e.clientX - rect.left) / rect.width) * 100;
+      mouse.y = ((e.clientY - rect.top) / rect.height) * 100;
+      mouse.active = true;
+      hoverTarget = targetNearMouse();
+    });
     stage.addEventListener('pointermove', e=>{
       const rect = stage.getBoundingClientRect();
       mouse.x = ((e.clientX - rect.left) / rect.width) * 100;
@@ -1225,6 +1246,7 @@
     style.textContent = `@keyframes rain{0%{transform:translateY(-18vh) rotate(13deg);opacity:0}15%{opacity:.55}100%{transform:translateY(115vh) rotate(13deg);opacity:0}}`;
     document.head.appendChild(style);
 
+    applyScale();
     resizeAll();
     resetScene('rain');
     animate();
