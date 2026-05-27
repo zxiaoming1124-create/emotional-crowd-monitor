@@ -1,0 +1,1144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Emotional Crowd Monitor V17</title>
+  <style>
+    :root{
+      --bg:#0b0f14;
+      --panel:#121821;
+      --panel2:#0f141c;
+      --line:rgba(255,255,255,.08);
+      --soft:rgba(255,255,255,.58);
+      --bright:#71ff9e;
+      --danger:#ff5b8c;
+      --amber:#ffd049;
+      --blue:#5fc1ff;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      background:radial-gradient(circle at top, #1a2230 0%, #0b0f14 48%, #070a0f 100%);
+      color:white;
+      font-family:Inter,Arial,Helvetica,sans-serif;
+      height:100vh;
+      overflow:hidden;
+    }
+    .page{
+      width:min(1460px,100%);
+      height:100vh;
+      margin:0 auto;
+      padding:16px;
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+      overflow:hidden;
+    }
+    .top{
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-end;
+      gap:16px;
+      flex-wrap:wrap;
+    }
+    .eyebrow{
+      margin:0 0 10px;
+      font-size:11px;
+      text-transform:uppercase;
+      letter-spacing:.24em;
+      color:rgba(255,255,255,.45);
+      font-family:"Courier New",monospace;
+    }
+    h1{
+      margin:0;
+      font-size:clamp(32px,5vw,68px);
+      line-height:.95;
+      letter-spacing:-.05em;
+      font-weight:900;
+    }
+    .desc{
+      margin:12px 0 0;
+      max-width:760px;
+      color:rgba(255,255,255,.62);
+      font-size:13px;
+      line-height:1.6;
+      font-family:"Courier New",monospace;
+    }
+    .controls{display:none}
+    button{
+      appearance:none;border:1px solid rgba(255,255,255,.14);border-radius:999px;
+      background:rgba(255,255,255,.05);color:rgba(255,255,255,.8);
+      padding:10px 14px;font-size:12px;cursor:pointer;
+      transition:.18s ease;font-family:"Courier New",monospace
+    }
+    button:hover{background:rgba(255,255,255,.1)}
+    button.active{background:white;color:#0b0f14;border-color:white}
+
+    .shell{
+      display:grid;
+      grid-template-columns:minmax(0,1.72fr) minmax(420px,1.08fr);
+      gap:16px;
+      min-height:0;
+      flex:1;
+    }
+
+    .monitor,
+    .panel{
+      background:linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
+      border:1px solid var(--line);
+      border-radius:22px;
+      overflow:hidden;
+      box-shadow:0 16px 60px rgba(0,0,0,.3);
+      position:relative;
+      min-height:0;
+    }
+
+    .monitor-head,
+    .panel-head{
+      display:flex;justify-content:space-between;align-items:center;
+      padding:12px 16px;border-bottom:1px solid var(--line);
+      background:linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.02));
+      font-family:"Courier New",monospace;font-size:11px;color:rgba(255,255,255,.62);
+      text-transform:uppercase;letter-spacing:.14em;
+    }
+
+    .stage-wrap{position:relative;height:100%;min-height:0;background:#070a0f;overflow:hidden}
+    #stage{position:absolute;inset:0;overflow:hidden;isolation:isolate;cursor:none}
+    #bgCanvas,#fxCanvas,#graphCanvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+    #bgCanvas{z-index:1} #fxCanvas{z-index:3} #graphCanvas{z-index:4}
+    #sceneLayer{position:absolute;inset:0;z-index:2;pointer-events:none}
+    .gridOverlay,.scanLines,.vignette,.ghostData{position:absolute;inset:0;pointer-events:none}
+    .gridOverlay{
+      z-index:5;opacity:.12;
+      background-image:
+        linear-gradient(rgba(255,255,255,.12) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.12) 1px, transparent 1px);
+      background-size:48px 48px,48px 48px;
+    }
+    .scanLines{
+      z-index:6;opacity:.12;
+      background:repeating-linear-gradient(180deg, rgba(255,255,255,.12) 0 1px, transparent 1px 4px);
+      mix-blend-mode:screen;
+    }
+    .ghostData{
+      z-index:7;opacity:.18;
+      background:
+        linear-gradient(90deg, transparent 0 72%, rgba(95,193,255,.24) 72% 72.4%, transparent 72.4% 100%),
+        linear-gradient(0deg, transparent 0 30%, rgba(113,255,158,.12) 30% 30.5%, transparent 30.5% 100%);
+    }
+    .vignette{
+      z-index:8;
+      background:radial-gradient(circle at center, transparent 54%, rgba(0,0,0,.38) 100%);
+    }
+    .corner{
+      position:absolute;z-index:20;width:26px;height:26px;border-color:rgba(113,255,158,.65)
+    }
+    .corner.tl{left:18px;top:18px;border-left:2px solid;border-top:2px solid}
+    .corner.tr{right:18px;top:18px;border-right:2px solid;border-top:2px solid}
+    .corner.bl{left:18px;bottom:18px;border-left:2px solid;border-bottom:2px solid}
+    .corner.br{right:18px;bottom:18px;border-right:2px solid;border-bottom:2px solid}
+    .stage-hud{
+      position:absolute;z-index:21;font-family:"Courier New",monospace;font-size:11px;
+      color:rgba(255,255,255,.78);pointer-events:none;text-shadow:0 1px 12px rgba(0,0,0,.4)
+    }
+    .hud-left{left:22px;top:22px}
+    .hud-right{right:22px;top:22px;text-align:right;display:none}
+    .hud-bottom{left:22px;bottom:22px}
+    .rec{display:inline-flex;align-items:center;gap:8px}
+    .rec::before{content:"";width:8px;height:8px;border-radius:999px;background:#ff4f5e;box-shadow:0 0 12px #ff4f5e}
+
+    .person{position:absolute;transform:translate(-50%,-50%);z-index:12;will-change:transform,left,top}
+    .body{position:relative}
+    .part,.glow,.noise{position:absolute}
+    .glow{left:50%;top:50%;transform:translate(-50%,-50%);border-radius:999px;mix-blend-mode:screen}
+    .part{border-radius:999px;border:1px solid rgba(255,255,255,.06)}
+    .noise{inset:0;opacity:.35;mix-blend-mode:screen;background-image:radial-gradient(circle, rgba(255,255,255,.45) 1px, transparent 2px);background-size:8px 8px}
+
+    .cursor{
+      position:absolute;z-index:40;width:30px;height:30px;transform:translate(-50%,-50%);
+      border:1px solid rgba(255,255,255,.5);border-radius:999px;pointer-events:none;
+      background:rgba(255,255,255,.06);backdrop-filter:blur(3px)
+    }
+    .cursor::before,.cursor::after{content:"";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:rgba(255,255,255,.34)}
+    .cursor::before{width:1px;height:52px}.cursor::after{width:52px;height:1px}
+
+    .lockbox{
+      position:absolute;z-index:30;border:1px solid var(--bright);pointer-events:none;
+      box-shadow:0 0 18px rgba(113,255,158,.28), inset 0 0 12px rgba(113,255,158,.08)
+    }
+    .lockbox::before{
+      content:attr(data-label);position:absolute;left:-1px;top:-22px;white-space:nowrap;
+      color:var(--bright);font-family:"Courier New",monospace;font-size:10px
+    }
+    .lockbox.pinned{border-color:#ffcf48;box-shadow:0 0 18px rgba(255,208,73,.3), inset 0 0 12px rgba(255,208,73,.08)}
+    .lockbox.pinned::before{color:#ffcf48}
+
+    .panel-body{display:grid;grid-template-rows:auto auto minmax(420px,1fr);gap:10px;padding:12px;background:linear-gradient(180deg, rgba(10,14,20,.96), rgba(8,11,16,.98));height:calc(100% - 46px);overflow:hidden}
+    .subject{
+      display:grid;grid-template-columns:54px 1fr;gap:10px;align-items:center;
+      padding:8px;border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.02)
+    }
+    .portrait{
+      height:54px;border-radius:11px;overflow:hidden;border:1px solid rgba(255,255,255,.08);background:#07090d;position:relative
+    }
+    #portraitCanvas,#emotionMatrixCanvas{width:100%;height:100%;display:block}
+    .subject-meta h3{margin:0;font-size:15px;letter-spacing:-.02em}
+    .subject-meta p{display:none}
+    .emotion-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+    .emotion-card{padding:8px 10px;border-radius:14px;border:1px solid var(--line);background:rgba(255,255,255,.02);min-width:0}
+    .emotion-card .label{font-size:9px;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:.12em;font-family:"Courier New",monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .emotion-card .value{margin-top:5px;font-size:13px;line-height:1.1;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .matrix-card{border:1px solid rgba(255,255,255,.08);border-radius:16px;overflow:hidden;background:linear-gradient(180deg, rgba(13,18,28,.98), rgba(8,12,20,.98));position:relative;min-height:0;box-shadow:inset 0 0 0 1px rgba(255,255,255,.02)}
+    .matrix-card::before{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(circle at 50% 50%, rgba(32,48,88,0) 42%, rgba(5,8,14,.34) 100%);z-index:2}
+    .matrix-cap{position:absolute;left:12px;top:10px;z-index:3;font-family:"Courier New",monospace;font-size:10px;color:rgba(255,255,255,.62);text-transform:uppercase;letter-spacing:.08em}
+    .matrix-axis-x,.matrix-axis-y{position:absolute;z-index:3;font-family:"Courier New",monospace;font-size:9px;color:rgba(255,255,255,.48);text-transform:uppercase;letter-spacing:.08em;pointer-events:none}
+    .matrix-axis-x{left:14px;right:14px;bottom:10px;display:flex;justify-content:space-between}
+    .matrix-axis-y{right:10px;top:38px;writing-mode:vertical-rl;transform:rotate(180deg)}
+
+    @media (max-width:1020px){
+      .shell{grid-template-columns:1fr;overflow:auto}
+      .stage-wrap{min-height:420px}
+    }
+    @media (max-width:680px){
+      body{overflow:auto;height:auto}
+      .page{padding:14px;height:auto;overflow:visible}
+      .subject{grid-template-columns:1fr}
+      .stats{grid-template-columns:1fr 1fr}
+      .stage-wrap{min-height:380px}
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="top">
+      <div>
+        <h1>Where the Rain Holds Everyone</h1>
+        <p class="desc">On the rainy street, people keep moving as if nothing is happening. They pass under dim light, carrying small signals that never become words: numbness, tension, hesitation, warmth, heaviness. From far away, each body looks ordinary. But when one figure is held in view, the street begins to reveal what the person has been carrying quietly.</p>
+      </div>
+    </div>
+
+    <div class="shell">
+      <section class="monitor">
+        <div class="monitor-head">
+          <span>Rain Street / Passing Figures</span>
+          <span id="sceneName">Emotional Weather</span>
+        </div>
+        <div class="stage-wrap">
+          <div id="stage">
+            <canvas id="bgCanvas"></canvas>
+            <div id="sceneLayer"></div>
+            <canvas id="fxCanvas"></canvas>
+            <canvas id="graphCanvas"></canvas>
+            <div class="gridOverlay"></div>
+            <div class="scanLines"></div>
+            <div class="ghostData"></div>
+            <div class="vignette"></div>
+            <div class="corner tl"></div>
+            <div class="corner tr"></div>
+            <div class="corner bl"></div>
+            <div class="corner br"></div>
+            <div class="stage-hud hud-left">
+              <div class="rec">REC</div>
+              <div>FRAME <span id="frameCount">00000</span></div>
+              <div>STATUS <span id="systemState">SWEEP</span></div>
+            </div>
+            <div class="stage-hud hud-right">
+              <div>SCENE <span id="sceneLabel">RAINY STREET</span></div>
+              <div>HOVER <span id="hoverLabel">NONE</span></div>
+              <div>LOCK <span id="lockLabel">NONE</span></div>
+            </div>
+            <div class="stage-hud hud-bottom">
+              <div id="subtitle">wet asphalt / passing figures / unstable identity</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <aside class="panel">
+        <div class="panel-head">
+          <span>Held Figure / Emotional Trace</span>
+          <span id="panelMode">Awaiting target</span>
+        </div>
+        <div class="panel-body">
+          <div class="subject">
+            <div class="portrait"><canvas id="portraitCanvas"></canvas></div>
+            <div class="subject-meta">
+              <h3 id="subjectTitle">No subject locked</h3>
+              <p id="subjectText"></p>
+            </div>
+          </div>
+
+          <div class="emotion-summary">
+            <div class="emotion-card"><div class="label">Dominant Signal</div><div class="value" id="dominantSignalValue">—</div></div>
+            <div class="emotion-card"><div class="label">Signal Strength</div><div class="value" id="signalStrengthValue">—</div></div>
+            <div class="emotion-card"><div class="label">Signal Range</div><div class="value" id="signalRangeValue">—</div></div>
+          </div>
+
+          <div class="matrix-card">
+            <div class="matrix-cap" id="matrixCap">Emotional dot field / waiting for lock</div>
+            <canvas id="emotionMatrixCanvas"></canvas>
+            <div class="matrix-axis-x"><span>happy / soft pink</span><span>sad / deep blue</span></div>
+            <div class="matrix-axis-y">emotional fluctuation</div>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <script>
+    const TRAITS = [
+      'restless','contained','euphoric','guarded','hesitant','elastic','withdrawn','radiant','fragmented','diffused','watchful','heavy'
+    ];
+    const SIGNALS = [
+      {name:'heat', color:'#ff5b8c'},
+      {name:'motion', color:'#ff8a2b'},
+      {name:'noise', color:'#55b8ff'},
+      {name:'drift', color:'#7eff67'},
+      {name:'static', color:'#ffd84d'},
+      {name:'shadow', color:'#9095ff'},
+      {name:'weight', color:'#1e1e1e'}
+    ];
+
+    const PROFILES = {
+      heat:{name:'anger cluster', short:'anger', primary:'#ff6464', secondary:'#ffb24a', accent:'#7a1e1e', base:'#160a0a', mode:'sharp'},
+      motion:{name:'anxiety cluster', short:'anxiety', primary:'#ffbf4a', secondary:'#ff7d5f', accent:'#78511c', base:'#151006', mode:'wide'},
+      noise:{name:'fracture cluster', short:'fracture', primary:'#6abfff', secondary:'#8d90ff', accent:'#23386f', base:'#08111d', mode:'glitch'},
+      drift:{name:'melancholy cluster', short:'melancholy', primary:'#64b8ff', secondary:'#68d7b0', accent:'#27446f', base:'#09121b', mode:'droop'},
+      static:{name:'vigilance cluster', short:'vigilance', primary:'#ffe05d', secondary:'#ffd049', accent:'#6b5a19', base:'#151108', mode:'wide'},
+      shadow:{name:'withdrawn cluster', short:'withdrawn', primary:'#a48dff', secondary:'#ff72ad', accent:'#34265d', base:'#100918', mode:'mask'},
+      weight:{name:'numb cluster', short:'numb', primary:'#7d8b7d', secondary:'#475251', accent:'#101214', base:'#0b0c0f', mode:'heavy'}
+    };
+
+    function createRng(seed){
+      let s = seed >>> 0;
+      return function(){
+        s = (s * 1664525 + 1013904223) >>> 0;
+        return s / 4294967296;
+      }
+    }
+
+    function profileForTarget(t){
+      return PROFILES[t.signal] || PROFILES.noise;
+    }
+
+    function rangeLabelForTarget(t){
+      const value = t ? t.drift : 0;
+      if(value >= 70) return 'wide';
+      if(value >= 42) return 'medium';
+      return 'narrow';
+    }
+
+    const SCENES = {
+      rain: {
+        title:'Rainy Street', label:'RAINY STREET', subtitle:'wet asphalt / passing figures / unstable identity',
+        mode:'drift', count:42, bg:['#09101b','#172437','#0d1829'], line:'rgba(255,255,255,.16)'
+      },
+      park: {
+        title:'Park Loop', label:'PARK LOOP', subtitle:'running bodies / atmosphere / fleeting overlap',
+        mode:'run', count:34, bg:['#dbe6d4','#c7d7bf','#b7c9a9'], line:'rgba(60,82,40,.26)'
+      },
+      crossing: {
+        title:'Urban Crossing', label:'URBAN CROSSING', subtitle:'crossing flow / camera logic / uncertain match',
+        mode:'cross', count:56, bg:['#e6e1d8','#d3cdc1','#bfb9ac'], line:'rgba(0,0,0,.18)'
+      }
+    };
+
+    const stage = document.getElementById('stage');
+    const sceneLayer = document.getElementById('sceneLayer');
+    const bgCanvas = document.getElementById('bgCanvas');
+    const fxCanvas = document.getElementById('fxCanvas');
+    const graphCanvas = document.getElementById('graphCanvas');
+    const portraitCanvas = document.getElementById('portraitCanvas');
+    const emotionMatrixCanvas = document.getElementById('emotionMatrixCanvas');
+    const bgCtx = bgCanvas.getContext('2d');
+    const fxCtx = fxCanvas.getContext('2d');
+    const graphCtx = graphCanvas.getContext('2d');
+    const portraitCtx = portraitCanvas.getContext('2d');
+    const emotionMatrixCtx = emotionMatrixCanvas.getContext('2d');
+
+    const frameCountEl = document.getElementById('frameCount');
+    const systemStateEl = document.getElementById('systemState');
+    const sceneLabelEl = document.getElementById('sceneLabel');
+    const hoverLabelEl = document.getElementById('hoverLabel');
+    const lockLabelEl = document.getElementById('lockLabel');
+    const subtitleEl = document.getElementById('subtitle');
+    const sceneNameEl = document.getElementById('sceneName');
+    const panelModeEl = document.getElementById('panelMode');
+    const subjectTitleEl = document.getElementById('subjectTitle');
+    const subjectTextEl = document.getElementById('subjectText');
+    const dominantSignalValueEl = document.getElementById('dominantSignalValue');
+    const signalStrengthValueEl = document.getElementById('signalStrengthValue');
+    const signalRangeValueEl = document.getElementById('signalRangeValue');
+    const matrixCapEl = document.getElementById('matrixCap');
+
+    let sceneKey = 'rain';
+    let frame = 0;
+    let people = [];
+    let els = [];
+    let pointCloud = [];
+    let cursorEl = null;
+    let hoverBox = null;
+    let pinBox = null;
+    let hoverTarget = null;
+    let pinnedTarget = null;
+    let mouse = {x:50, y:50, active:false};
+
+    function rand(min,max){ return min + Math.random()*(max-min); }
+    function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
+    function choice(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+
+    function paletteSet(){
+      const sets = [
+        ['#5fc1ff','#2c78ff','#f7f3da','#ff8d4d'],
+        ['#ffd94c','#ff5e5e','#3ad98c','#1b1b1b'],
+        ['#ff6cab','#7a71ff','#56c7ff','#ffffff'],
+        ['#ffd74f','#85ff68','#171717','#ff8d2e'],
+        ['#6ce5ff','#ffffff','#ff5b8c','#232b5d']
+      ];
+      return choice(sets).slice();
+    }
+
+    function makePerson(i){
+      const signal = SIGNALS[i % SIGNALS.length];
+      const palette = paletteSet();
+      const scale = rand(.66,1.42);
+      const mode = SCENES[sceneKey].mode;
+      let y = rand(20,82);
+      if(mode === 'run') y = rand(28,70);
+      return {
+        id:i+1,
+        label:`P_${String(i+1).padStart(2,'0')}`,
+        signal:signal.name,
+        baseColor:signal.color,
+        palette,
+        confidence:Math.round(rand(42,94)),
+        drift:Math.round(rand(18,91)),
+        traits:[choice(TRAITS), choice(TRAITS)],
+        width:28*scale,
+        height:88*scale,
+        x:rand(4,96),
+        y,
+        vx: mode==='cross' ? (Math.random()<.5?-1:1)*rand(.05,.1) : mode==='run' ? (Math.random()<.5?-1:1)*rand(.07,.14) : rand(-.04,.04),
+        vy: mode==='cross' ? rand(-.015,.015) : mode==='run' ? rand(-.01,.01) : rand(-.025,.025),
+        sway: rand(0,Math.PI*2),
+        blur: rand(.4,1.2),
+        scale,
+      };
+    }
+
+    function resizeCanvas(canvas){
+      const rect = canvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      const ctx = canvas.getContext('2d');
+      ctx.setTransform(dpr,0,0,dpr,0,0);
+      return {w:rect.width,h:rect.height};
+    }
+
+    function resizeAll(){
+      [bgCanvas,fxCanvas,graphCanvas,portraitCanvas,emotionMatrixCanvas].forEach(resizeCanvas);
+      buildBackgroundData();
+    }
+    window.addEventListener('resize', resizeAll);
+
+    function createSceneDecor(){
+      sceneLayer.innerHTML = '';
+      const scene = SCENES[sceneKey];
+      const bg = `linear-gradient(180deg, ${scene.bg[0]} 0%, ${scene.bg[1]} 48%, ${scene.bg[2]} 100%)`;
+      stage.style.background = bg;
+
+      if(sceneKey === 'rain'){
+        for(let i=0;i<110;i++){
+          const d = document.createElement('div');
+          d.style.position='absolute';
+          d.style.left=`${rand(0,100)}%`;
+          d.style.top=`${rand(-120,0)}%`;
+          d.style.width='1px';
+          d.style.height=`${rand(18,40)}px`;
+          d.style.background='rgba(255,255,255,.35)';
+          d.style.transform='rotate(13deg)';
+          d.style.animation=`rain ${rand(1.2,2)}s linear ${rand(0,2)}s infinite`;
+          sceneLayer.appendChild(d);
+        }
+      }
+
+      if(sceneKey === 'park'){
+        const path = document.createElement('div');
+        path.style.position='absolute';
+        path.style.left='7%'; path.style.right='7%'; path.style.bottom='13%';
+        path.style.height='20%'; path.style.borderRadius='999px';
+        path.style.border='1px solid rgba(255,255,255,.2)';
+        path.style.background='rgba(190,166,116,.28)';
+        sceneLayer.appendChild(path);
+      }
+
+      if(sceneKey === 'crossing'){
+        const stripes = document.createElement('div');
+        stripes.style.position='absolute';
+        stripes.style.left='0'; stripes.style.right='0'; stripes.style.bottom='11%';
+        stripes.style.height='18%';
+        stripes.style.opacity='.24';
+        stripes.style.background='repeating-linear-gradient(90deg, rgba(255,255,255,.94) 0 5%, transparent 5% 9%)';
+        sceneLayer.appendChild(stripes);
+      }
+    }
+
+    function buildBackgroundData(){
+      const rect = stage.getBoundingClientRect();
+      pointCloud = Array.from({length:720}, () => ({
+        x:rand(0,rect.width), y:rand(0,rect.height), r:rand(.35,1.2), a:rand(.04,.2), dx:rand(-.14,.14), dy:rand(-.1,.1)
+      }));
+    }
+
+    function createPeople(){
+      people = Array.from({length:SCENES[sceneKey].count}, (_,i)=>makePerson(i));
+    }
+
+    function renderPeople(){
+      els.forEach(el=>el.remove());
+      els = [];
+      people.forEach(p=>{
+        const el = document.createElement('div');
+        el.className='person';
+        el.dataset.id = p.id;
+        const body = document.createElement('div');
+        body.className='body';
+        body.style.width=`${p.width}px`;
+        body.style.height=`${p.height}px`;
+
+        const glow = document.createElement('div');
+        glow.className='glow';
+        glow.style.width=`${p.width*1.8}px`;
+        glow.style.height=`${p.height*1.1}px`;
+        glow.style.background=`radial-gradient(circle, ${p.palette[0]}aa 0%, ${p.palette[1]}60 40%, transparent 74%)`;
+        glow.style.filter=`blur(${10+p.scale*5}px)`;
+
+        const head = document.createElement('div');
+        head.className='part';
+        head.style.left='50%'; head.style.top='0'; head.style.transform='translateX(-50%)';
+        head.style.width=`${p.width*.42}px`; head.style.height=`${p.width*.42}px`;
+        head.style.background=`linear-gradient(160deg, rgba(255,255,255,.06), ${p.palette[0]}cc 55%, rgba(0,0,0,.82))`;
+        head.style.filter=`blur(${p.blur}px)`;
+
+        const torso = document.createElement('div');
+        torso.className='part';
+        torso.style.left='50%'; torso.style.top=`${p.width*.28}px`; torso.style.transform='translateX(-50%)';
+        torso.style.width=`${p.width*1.02}px`; torso.style.height=`${p.height*.54}px`;
+        torso.style.clipPath='polygon(18% 0%, 82% 0%, 96% 100%, 4% 100%)';
+        torso.style.background=`linear-gradient(180deg, ${p.palette[1]}dd 0%, ${p.palette[2]}88 40%, rgba(0,0,0,.85) 100%)`;
+        torso.style.filter=`blur(${p.blur}px)`;
+
+        const armL = document.createElement('div');
+        const armR = document.createElement('div');
+        [armL,armR].forEach((arm,idx)=>{
+          arm.className='part';
+          arm.style.top=`${p.height*.2}px`;
+          arm.style.width=`${p.width*.14}px`; arm.style.height=`${p.height*.42}px`;
+          arm.style.background=`linear-gradient(180deg, ${p.palette[idx?2:0]}b0, rgba(0,0,0,.7))`;
+          arm.style.filter=`blur(${p.blur}px)`;
+          arm.style.transformOrigin='top center';
+        });
+        armL.style.left=`${p.width*.1}px`;
+        armR.style.right=`${p.width*.1}px`;
+
+        const legL = document.createElement('div');
+        const legR = document.createElement('div');
+        [legL,legR].forEach((leg,idx)=>{
+          leg.className='part';
+          leg.style.top=`${p.height*.66}px`;
+          leg.style.width=`${p.width*.16}px`; leg.style.height=`${p.height*.26}px`;
+          leg.style.background=`linear-gradient(180deg, rgba(0,0,0,.92), ${p.palette[idx?3:1]}70)`;
+          leg.style.filter=`blur(${p.blur}px)`;
+          leg.style.transformOrigin='top center';
+        });
+        legL.style.left=`${p.width*.34}px`;
+        legR.style.right=`${p.width*.34}px`;
+
+        const noise = document.createElement('div');
+        noise.className='noise';
+
+        body.append(glow, head, torso, armL, armR, legL, legR, noise);
+        el.appendChild(body);
+        stage.appendChild(el);
+        els.push(el);
+      });
+    }
+
+    function drawBackground(){
+      const {w,h} = resizeCanvas(bgCanvas);
+      const line = SCENES[sceneKey].line;
+      bgCtx.clearRect(0,0,w,h);
+
+      pointCloud.forEach(p=>{
+        p.x += p.dx; p.y += p.dy;
+        if(p.x<0) p.x=w; if(p.x>w) p.x=0; if(p.y<0) p.y=h; if(p.y>h) p.y=0;
+        bgCtx.beginPath();
+        bgCtx.fillStyle = sceneKey === 'park' ? `rgba(56,78,44,${p.a})` : `rgba(255,255,255,${p.a})`;
+        bgCtx.arc(p.x,p.y,p.r,0,Math.PI*2);
+        bgCtx.fill();
+      });
+
+      graphCtx.clearRect(0,0,w,h);
+      graphCtx.lineWidth = 1;
+      // Removed the flashing vertical data bars on the right side of the scene.
+    }
+
+    function updatePeople(){
+      const mode = SCENES[sceneKey].mode;
+      people.forEach((p, idx)=>{
+        p.x += p.vx; p.y += p.vy; p.sway += .04;
+
+        if(mode==='drift'){
+          if(p.x < -8 || p.x > 108) p.vx *= -1;
+          if(p.y < 12 || p.y > 92) p.vy *= -1;
+        }
+        if(mode==='run'){
+          if(p.x < -10) p.x = 110;
+          if(p.x > 110) p.x = -10;
+          if(p.y < 26 || p.y > 74) p.vy *= -1;
+        }
+        if(mode==='cross'){
+          if(p.x < -8) p.x = 108;
+          if(p.x > 108) p.x = -8;
+          if(p.y < 12 || p.y > 92) p.vy *= -1;
+        }
+
+        p.x = clamp(p.x,-10,110); p.y = clamp(p.y,8,94);
+
+        const el = els[idx];
+        const sway = mode==='run' ? Math.sin(p.sway*1.8)*6 : Math.sin(p.sway)*2.5;
+        const tilt = mode==='cross' ? Math.sin(p.sway)*2 : mode==='run' ? Math.sin(p.sway*1.6)*4.5 : Math.sin(p.sway)*2;
+        const isHover = hoverTarget && hoverTarget.id===p.id;
+        const isPinned = pinnedTarget && pinnedTarget.id===p.id;
+        el.style.left = `${p.x}%`;
+        el.style.top = `${p.y}%`;
+        el.style.transform = `translate(-50%,-50%) rotate(${tilt}deg) scale(${isPinned?1.08:isHover?1.03:1})`;
+        el.style.opacity = isPinned ? 1 : isHover ? .95 : .86;
+
+        const arms = el.querySelectorAll('.part');
+        const armL = arms[2], armR = arms[3], legL = arms[4], legR = arms[5];
+        armL.style.transform = `rotate(${-10-sway}deg)`;
+        armR.style.transform = `rotate(${10+sway}deg)`;
+        legL.style.transform = `rotate(${-5-sway*.25}deg)`;
+        legR.style.transform = `rotate(${5+sway*.25}deg)`;
+
+        const glow = el.querySelector('.glow');
+        glow.style.opacity = isPinned ? '.92' : isHover ? '.78' : '.58';
+      });
+    }
+
+    function targetNearMouse(){
+      if(!mouse.active) return null;
+      let closest = null;
+      let min = Infinity;
+      people.forEach(p=>{
+        const dx = p.x - mouse.x;
+        const dy = p.y - mouse.y;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        const radius = SCENES[sceneKey].mode === 'cross' ? 9 : 10;
+        if(dist < radius && dist < min){ min = dist; closest = p; }
+      });
+      return closest;
+    }
+
+    function ensureCursor(){
+      if(!cursorEl){
+        cursorEl = document.createElement('div');
+        cursorEl.className = 'cursor';
+        stage.appendChild(cursorEl);
+      }
+    }
+
+    function moveCursor(){
+      ensureCursor();
+      cursorEl.style.display = mouse.active ? 'block' : 'none';
+      cursorEl.style.left = `${mouse.x}%`;
+      cursorEl.style.top = `${mouse.y}%`;
+    }
+
+    function ensureBoxes(){
+      if(!hoverBox){ hoverBox = document.createElement('div'); hoverBox.className='lockbox'; stage.appendChild(hoverBox); }
+      if(!pinBox){ pinBox = document.createElement('div'); pinBox.className='lockbox pinned'; stage.appendChild(pinBox); }
+    }
+
+    function placeBox(box,target,label){
+      if(!target){ box.style.display='none'; return; }
+      box.style.display='block';
+      box.style.left = `calc(${target.x}% - ${target.width/2}px - 12px)`;
+      box.style.top = `calc(${target.y}% - ${target.height/2}px - 12px)`;
+      box.style.width = `${target.width+24}px`;
+      box.style.height = `${target.height+24}px`;
+      box.dataset.label = label;
+    }
+
+    function drawHoverFX(){
+      const {w,h} = resizeCanvas(fxCanvas);
+      fxCtx.clearRect(0,0,w,h);
+      const t = hoverTarget || pinnedTarget;
+      if(!t) return;
+      const x = w * t.x / 100;
+      const y = h * t.y / 100;
+      fxCtx.strokeStyle = pinnedTarget && pinnedTarget.id===t.id ? 'rgba(255,208,73,.68)' : 'rgba(113,255,158,.62)';
+      fxCtx.lineWidth = 1.2;
+      for(let i=1;i<=3;i++){
+        fxCtx.beginPath();
+        fxCtx.arc(x,y,26+i*16+Math.sin(frame*.05+i)*4,0,Math.PI*2);
+        fxCtx.stroke();
+      }
+      fxCtx.beginPath();
+      fxCtx.moveTo(x-80,y); fxCtx.lineTo(x+80,y);
+      fxCtx.moveTo(x,y-80); fxCtx.lineTo(x,y+80);
+      fxCtx.strokeStyle = 'rgba(255,255,255,.12)';
+      fxCtx.stroke();
+    }
+
+    function refreshPanel(target){
+      const t = target || hoverTarget;
+      if(!t){
+        panelModeEl.textContent = 'Awaiting target';
+        subjectTitleEl.textContent = 'No subject locked';
+        subjectTextEl.textContent = '';
+        dominantSignalValueEl.textContent = '—';
+        signalStrengthValueEl.textContent = '—';
+        signalRangeValueEl.textContent = '—';
+        matrixCapEl.textContent = 'Emotional dot field / waiting for lock';
+        resizeCanvas(portraitCanvas); portraitCtx.clearRect(0,0,portraitCanvas.width,portraitCanvas.height);
+        drawEmotionMatrix(null, false, null);
+        return;
+      }
+      const profile = profileForTarget(t);
+      const pinned = pinnedTarget && pinnedTarget.id === t.id;
+      panelModeEl.textContent = pinned ? 'Locked / emotional dot matrix' : 'Hover acquisition';
+      subjectTitleEl.textContent = pinned ? `${t.label} / locked subject` : `${t.label} / candidate subject`;
+      subjectTextEl.textContent = '';
+      dominantSignalValueEl.textContent = profile.short;
+      signalStrengthValueEl.textContent = `${t.confidence}%`;
+      signalRangeValueEl.textContent = rangeLabelForTarget(t);
+      matrixCapEl.textContent = `${profile.short} / emotional range matrix`;
+      drawPortrait(t, pinned, profile);
+      drawEmotionMatrix(t, pinned, profile);
+    }
+
+    function drawPortrait(t, pinned, profile){
+      const {w,h} = resizeCanvas(portraitCanvas);
+      portraitCtx.clearRect(0,0,w,h);
+
+      const bg = portraitCtx.createLinearGradient(0,0,0,h);
+      bg.addColorStop(0, '#070b12');
+      bg.addColorStop(1, '#0c111a');
+      portraitCtx.fillStyle = bg;
+      portraitCtx.fillRect(0,0,w,h);
+
+      // subtle scan grid, not an emotion fingerprint
+      portraitCtx.strokeStyle = 'rgba(255,255,255,.045)';
+      portraitCtx.lineWidth = 1;
+      for(let gx=10; gx<w; gx+=16){
+        portraitCtx.beginPath(); portraitCtx.moveTo(gx,8); portraitCtx.lineTo(gx,h-8); portraitCtx.stroke();
+      }
+      for(let gy=10; gy<h; gy+=16){
+        portraitCtx.beginPath(); portraitCtx.moveTo(8,gy); portraitCtx.lineTo(w-8,gy); portraitCtx.stroke();
+      }
+
+      const avatar = {
+        cx: w * .5,
+        top: h * .2,
+        scale: Math.min(w,h) / 86
+      };
+      const palette = t.palette && t.palette.length ? t.palette : [profile.primary, profile.secondary, profile.accent];
+      const pulse = .55 + .45 * Math.sin(frame * .035 + t.id);
+
+      // soft glow behind the locked person
+      const glow = portraitCtx.createRadialGradient(avatar.cx, h*.54, 2, avatar.cx, h*.54, w*.5);
+      glow.addColorStop(0, hexToRgba(profile.primary, .28 + pulse*.08));
+      glow.addColorStop(.45, hexToRgba(palette[0], .12));
+      glow.addColorStop(1, hexToRgba(profile.primary, 0));
+      portraitCtx.fillStyle = glow;
+      portraitCtx.beginPath(); portraitCtx.arc(avatar.cx, h*.54, w*.48, 0, Math.PI*2); portraitCtx.fill();
+
+      function roundedRect(ctx,x,y,ww,hh,r){
+        ctx.beginPath();
+        ctx.moveTo(x+r,y);
+        ctx.lineTo(x+ww-r,y);
+        ctx.quadraticCurveTo(x+ww,y,x+ww,y+r);
+        ctx.lineTo(x+ww,y+hh-r);
+        ctx.quadraticCurveTo(x+ww,y+hh,x+ww-r,y+hh);
+        ctx.lineTo(x+r,y+hh);
+        ctx.quadraticCurveTo(x,y+hh,x,y+hh-r);
+        ctx.lineTo(x,y+r);
+        ctx.quadraticCurveTo(x,y,x+r,y);
+        ctx.closePath();
+      }
+
+      // shadow/reflection dots like the crowd rendering
+      portraitCtx.fillStyle = 'rgba(255,255,255,.12)';
+      for(let i=0;i<28;i++){
+        const x = avatar.cx - 18 + (i%7)*6;
+        const y = h*.70 + Math.floor(i/7)*5;
+        portraitCtx.beginPath(); portraitCtx.arc(x,y,1.1,0,Math.PI*2); portraitCtx.fill();
+      }
+
+      // head
+      const headR = 8 * avatar.scale;
+      portraitCtx.fillStyle = `linear-gradient(180deg, ${palette[0]}, ${profile.accent})`;
+      const headGrad = portraitCtx.createLinearGradient(avatar.cx-headR, avatar.top, avatar.cx+headR, avatar.top+headR*2);
+      headGrad.addColorStop(0, hexToRgba(palette[0], .95));
+      headGrad.addColorStop(.65, hexToRgba(palette[1] || profile.secondary, .8));
+      headGrad.addColorStop(1, 'rgba(0,0,0,.85)');
+      portraitCtx.fillStyle = headGrad;
+      portraitCtx.beginPath(); portraitCtx.arc(avatar.cx, avatar.top + headR, headR, 0, Math.PI*2); portraitCtx.fill();
+
+      // torso
+      const torsoW = 28 * avatar.scale;
+      const torsoH = 40 * avatar.scale;
+      const torsoX = avatar.cx - torsoW/2;
+      const torsoY = avatar.top + headR*1.75;
+      const torsoGrad = portraitCtx.createLinearGradient(torsoX, torsoY, torsoX+torsoW, torsoY+torsoH);
+      torsoGrad.addColorStop(0, hexToRgba(palette[1] || profile.secondary, .92));
+      torsoGrad.addColorStop(.48, hexToRgba(palette[2] || profile.primary, .72));
+      torsoGrad.addColorStop(1, 'rgba(0,0,0,.82)');
+      portraitCtx.fillStyle = torsoGrad;
+      portraitCtx.beginPath();
+      portraitCtx.moveTo(avatar.cx - torsoW*.38, torsoY);
+      portraitCtx.lineTo(avatar.cx + torsoW*.38, torsoY);
+      portraitCtx.lineTo(avatar.cx + torsoW*.54, torsoY + torsoH);
+      portraitCtx.lineTo(avatar.cx - torsoW*.54, torsoY + torsoH);
+      portraitCtx.closePath();
+      portraitCtx.fill();
+
+      // arms
+      portraitCtx.strokeStyle = hexToRgba(profile.primary, .72);
+      portraitCtx.lineWidth = 4 * avatar.scale;
+      portraitCtx.lineCap = 'round';
+      portraitCtx.beginPath();
+      portraitCtx.moveTo(avatar.cx - torsoW*.45, torsoY + 5);
+      portraitCtx.lineTo(avatar.cx - torsoW*.66, torsoY + torsoH*.72);
+      portraitCtx.moveTo(avatar.cx + torsoW*.45, torsoY + 5);
+      portraitCtx.lineTo(avatar.cx + torsoW*.66, torsoY + torsoH*.72);
+      portraitCtx.stroke();
+
+      // legs
+      portraitCtx.strokeStyle = 'rgba(20,24,30,.9)';
+      portraitCtx.lineWidth = 5 * avatar.scale;
+      portraitCtx.beginPath();
+      portraitCtx.moveTo(avatar.cx - torsoW*.17, torsoY + torsoH);
+      portraitCtx.lineTo(avatar.cx - torsoW*.24, h*.86);
+      portraitCtx.moveTo(avatar.cx + torsoW*.17, torsoY + torsoH);
+      portraitCtx.lineTo(avatar.cx + torsoW*.24, h*.86);
+      portraitCtx.stroke();
+
+      // subtle locked label only, without the bright yellow framing box
+      portraitCtx.fillStyle = 'rgba(255,255,255,.38)';
+      portraitCtx.font = '9px Courier New';
+      portraitCtx.fillText(pinned ? 'LOCKED' : 'TARGET', 10, h - 8);
+
+      portraitCtx.strokeStyle = 'rgba(255,255,255,.12)';
+      portraitCtx.lineWidth = 1;
+      roundedRect(portraitCtx, 8, 8, w - 16, h - 16, 12);
+      portraitCtx.stroke();
+    }
+
+    function drawCompositeFace(ctx, w, h, profile, rng, idx){
+      const cx = w*.5, cy = h*.52;
+      ctx.fillStyle = hexToRgba(profile.primary, .28);
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, w*.18, h*.27, 0, 0, Math.PI*2);
+      ctx.fill();
+
+      ctx.fillStyle = hexToRgba(profile.secondary, .2);
+      ctx.beginPath();
+      ctx.ellipse(cx + w*.05, cy - h*.03, w*.12, h*.17, rng()*.4, 0, Math.PI*2);
+      ctx.fill();
+
+      ctx.strokeStyle = 'rgba(12,15,18,.9)';
+      ctx.lineWidth = 2;
+      const eyeY = cy - h*.08;
+      const eyeOffset = w*.08;
+      if(profile.mode === 'droop'){
+        ['L','R'].forEach((side, i)=>{
+          const ex = cx + (i===0 ? -eyeOffset : eyeOffset);
+          ctx.beginPath(); ctx.moveTo(ex-10, eyeY-2); ctx.quadraticCurveTo(ex, eyeY+8, ex+10, eyeY-1); ctx.stroke();
+          ctx.fillStyle = hexToRgba(profile.accent,.3); ctx.fillRect(ex+4, eyeY+2, 2, 10);
+        });
+      } else if(profile.mode === 'sharp'){
+        ['L','R'].forEach((side, i)=>{
+          const ex = cx + (i===0 ? -eyeOffset : eyeOffset);
+          ctx.beginPath(); ctx.moveTo(ex-10, eyeY+3); ctx.lineTo(ex, eyeY-5); ctx.lineTo(ex+10, eyeY+3); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(ex-12, eyeY-8); ctx.lineTo(ex+2, eyeY-12); ctx.stroke();
+        });
+      } else if(profile.mode === 'wide'){
+        ['L','R'].forEach((side, i)=>{
+          const ex = cx + (i===0 ? -eyeOffset : eyeOffset);
+          ctx.beginPath(); ctx.ellipse(ex, eyeY, 10, 7, 0, 0, Math.PI*2); ctx.stroke();
+          ctx.fillStyle = 'rgba(12,15,18,.95)'; ctx.beginPath(); ctx.arc(ex, eyeY, 2.6, 0, Math.PI*2); ctx.fill();
+        });
+      } else if(profile.mode === 'glitch'){
+        ['L','R'].forEach((side, i)=>{
+          const ex = cx + (i===0 ? -eyeOffset : eyeOffset);
+          ctx.fillStyle = hexToRgba(profile.secondary,.85); ctx.fillRect(ex-10, eyeY-6, 20, 12);
+          ctx.fillStyle = 'rgba(8,11,18,.9)'; ctx.fillRect(ex-3, eyeY-3, 6, 6);
+        });
+      } else if(profile.mode === 'mask'){
+        ctx.beginPath(); ctx.ellipse(cx-eyeOffset, eyeY, 11, 7, 0, 0, Math.PI*2); ctx.stroke();
+        ctx.fillStyle = hexToRgba(profile.accent,.55); ctx.fillRect(cx+2, eyeY-10, 18, 18);
+      } else {
+        ['L','R'].forEach((side, i)=>{
+          const ex = cx + (i===0 ? -eyeOffset : eyeOffset);
+          ctx.beginPath(); ctx.moveTo(ex-10, eyeY); ctx.quadraticCurveTo(ex, eyeY+4, ex+10, eyeY); ctx.stroke();
+        });
+      }
+
+      ctx.beginPath();
+      ctx.moveTo(cx, eyeY+4);
+      ctx.lineTo(cx-3, cy+h*.02);
+      ctx.lineTo(cx+4, cy+h*.05);
+      ctx.stroke();
+
+      const mouthY = cy + h*.09;
+      if(profile.mode === 'sharp'){
+        ctx.beginPath(); ctx.moveTo(cx-12,mouthY-3); ctx.lineTo(cx+12,mouthY-3); ctx.lineTo(cx+8,mouthY+9); ctx.lineTo(cx-8,mouthY+9); ctx.closePath(); ctx.stroke();
+      } else if(profile.mode === 'droop' || profile.mode === 'heavy'){
+        ctx.beginPath(); ctx.moveTo(cx-12,mouthY+4); ctx.quadraticCurveTo(cx,mouthY-3,cx+12,mouthY+4); ctx.stroke();
+      } else if(profile.mode === 'glitch'){
+        ctx.fillStyle = hexToRgba(profile.primary,.8); ctx.fillRect(cx-13,mouthY-2,26,8);
+        ctx.fillStyle = hexToRgba(profile.base,.75); ctx.fillRect(cx-5,mouthY,10,4);
+      } else {
+        ctx.beginPath(); ctx.moveTo(cx-12,mouthY); ctx.quadraticCurveTo(cx,mouthY+8,cx+12,mouthY); ctx.stroke();
+      }
+
+      ctx.strokeStyle = hexToRgba(profile.secondary,.65);
+      ctx.lineWidth = 1;
+      for(let i=0;i<3;i++){
+        ctx.beginPath();
+        const sy = h*.16 + i*h*.22 + rng()*6;
+        ctx.moveTo(w*.08, sy);
+        ctx.lineTo(w*.92, sy + (rng()-.5)*8);
+        ctx.stroke();
+      }
+    }
+
+    function drawEmotionMatrix(t, pinned, profile){
+      const {w,h} = resizeCanvas(emotionMatrixCanvas);
+      emotionMatrixCtx.clearRect(0,0,w,h);
+
+      const bg = emotionMatrixCtx.createLinearGradient(0,0,0,h);
+      bg.addColorStop(0,'#101827');
+      bg.addColorStop(.5,'#121d2e');
+      bg.addColorStop(1,'#090f18');
+      emotionMatrixCtx.fillStyle = bg;
+      emotionMatrixCtx.fillRect(0,0,w,h);
+
+      for(let i=0;i<5;i++){
+        const gx = w * (.12 + i*.19);
+        const gy = h * (.22 + (i%2)*.28);
+        const gr = emotionMatrixCtx.createRadialGradient(gx,gy,2,gx,gy,120 + i*22);
+        gr.addColorStop(0, `rgba(${i%2?70:34}, ${i%3?120:78}, ${i%2?255:190}, .06)`);
+        gr.addColorStop(1, 'rgba(0,0,0,0)');
+        emotionMatrixCtx.fillStyle = gr;
+        emotionMatrixCtx.beginPath();
+        emotionMatrixCtx.arc(gx,gy,120+i*22,0,Math.PI*2);
+        emotionMatrixCtx.fill();
+      }
+
+      const cols = 17;
+      const rows = 22;
+      const padX = 16;
+      const padTop = 30;
+      const padBottom = 24;
+      const cellW = (w - padX*2) / (cols - 1);
+      const cellH = (h - padTop - padBottom) / (rows - 1);
+      const baseSeed = t ? t.id * 8719 : 1187;
+      const rng = createRng(baseSeed);
+
+      function lerpColor(a,b,t){
+        const ah=parseInt(a.replace('#',''),16), bh=parseInt(b.replace('#',''),16);
+        const ar=ah>>16&255, ag=ah>>8&255, ab=ah&255;
+        const br=bh>>16&255, bg=bh>>8&255, bb=bh&255;
+        const rr=Math.round(ar+(br-ar)*t), rg=Math.round(ag+(bg-ag)*t), rb=Math.round(ab+(bb-ab)*t);
+        return `rgb(${rr},${rg},${rb})`;
+      }
+      function rangeColor(xNorm, yNorm, local){
+        const stops = ['#f7a7d0','#ff7f7c','#ffd65a','#85cb63','#3bc2d8','#3f7dff','#102861'];
+        const p = clamp(xNorm*0.84 + yNorm*0.08 + local*0.08, 0, 1) * (stops.length-1);
+        const i = Math.floor(p);
+        const f = p - i;
+        return lerpColor(stops[i], stops[Math.min(i+1, stops.length-1)], f);
+      }
+
+      emotionMatrixCtx.strokeStyle = 'rgba(255,255,255,.04)';
+      emotionMatrixCtx.lineWidth = 1;
+      for(let c=0;c<cols;c+=4){
+        const x = padX + c*cellW;
+        emotionMatrixCtx.beginPath();
+        emotionMatrixCtx.moveTo(x,padTop-8);
+        emotionMatrixCtx.lineTo(x,h-padBottom+6);
+        emotionMatrixCtx.stroke();
+      }
+      for(let r=0;r<rows;r+=5){
+        const y = padTop + r*cellH;
+        emotionMatrixCtx.beginPath();
+        emotionMatrixCtx.moveTo(padX-6,y);
+        emotionMatrixCtx.lineTo(w-padX+6,y);
+        emotionMatrixCtx.stroke();
+      }
+
+      const signalIndex = t ? SIGNALS.findIndex(s => s.name === t.signal) : 2;
+      const centerX = t ? clamp((signalIndex + 1.45) / (SIGNALS.length + 1), .1, .9) : .38;
+      const centerY = t ? clamp(.66 - (t.confidence/100)*.24 + Math.sin(frame*.015 + t.id)*.08, .14, .88) : .58;
+      const wave = t ? t.drift/100 : .35;
+      const intensity = t ? t.confidence/100 : .2;
+
+      if(t){
+        for(let i=0;i<9;i++){
+          const bx = padX + (centerX*(cols-1) + (rng()-.5)*5.8) * cellW;
+          const by = padTop + (centerY*(rows-1) + (rng()-.5)*6.2) * cellH;
+          const r = (54 + rng()*86) * (pinned ? 1.08 : .78);
+          const col = rangeColor(clamp(centerX + (rng()-.5)*.15,0,1), clamp(centerY + (rng()-.5)*.12,0,1), rng());
+          const gr = emotionMatrixCtx.createRadialGradient(bx,by,1,bx,by,r);
+          gr.addColorStop(0, col.replace('rgb','rgba').replace(')',',0.34)'));
+          gr.addColorStop(.42, col.replace('rgb','rgba').replace(')',',0.12)'));
+          gr.addColorStop(1, col.replace('rgb','rgba').replace(')',',0)'));
+          emotionMatrixCtx.fillStyle = gr;
+          emotionMatrixCtx.beginPath();
+          emotionMatrixCtx.arc(bx,by,r,0,Math.PI*2);
+          emotionMatrixCtx.fill();
+        }
+      }
+
+      for(let r=0;r<rows;r++){
+        for(let c=0;c<cols;c++){
+          const xNorm = c/(cols-1);
+          const yNorm = r/(rows-1);
+          const px = padX + c*cellW;
+          const py = padTop + r*cellH;
+          const jitterX = (rng()-.5) * 4.8;
+          const jitterY = (rng()-.5) * 4.8;
+          const dx = xNorm-centerX;
+          const dy = yNorm-centerY;
+          const dist = Math.sqrt(dx*dx + dy*dy);
+          const pulse = Math.sin(frame*.035 + c*.72 + r*.36 + baseSeed*.001) * .5 + .5;
+          const field = clamp(1 - dist/(.16 + wave*.36), 0, 1);
+          const alpha = .08 + field*.52 + pulse*.08*intensity;
+          const radius = 3.5 + field*8.5 + pulse*1.4;
+          const col = rangeColor(xNorm, yNorm, rng()*.7);
+
+          const glow = emotionMatrixCtx.createRadialGradient(px+jitterX,py+jitterY,1,px+jitterX,py+jitterY,radius*2.8);
+          glow.addColorStop(0, col.replace('rgb','rgba').replace(')',`,${alpha})`));
+          glow.addColorStop(.45, col.replace('rgb','rgba').replace(')',`,${alpha*.36})`));
+          glow.addColorStop(1, col.replace('rgb','rgba').replace(')',',0)'));
+          emotionMatrixCtx.fillStyle = glow;
+          emotionMatrixCtx.beginPath();
+          emotionMatrixCtx.arc(px+jitterX,py+jitterY,radius*2.8,0,Math.PI*2);
+          emotionMatrixCtx.fill();
+
+          emotionMatrixCtx.strokeStyle = col.replace('rgb','rgba').replace(')',`,${.18 + field*.26})`);
+          emotionMatrixCtx.lineWidth = .8;
+          emotionMatrixCtx.beginPath();
+          emotionMatrixCtx.arc(px+jitterX,py+jitterY,radius*.76,0,Math.PI*2);
+          emotionMatrixCtx.stroke();
+        }
+      }
+
+      if(t){
+        const mx = padX + centerX*(cols-1)*cellW;
+        const my = padTop + centerY*(rows-1)*cellH;
+        emotionMatrixCtx.strokeStyle = pinned ? 'rgba(255,214,90,.55)' : 'rgba(113,255,158,.42)';
+        emotionMatrixCtx.lineWidth = 1;
+        emotionMatrixCtx.beginPath();
+        emotionMatrixCtx.arc(mx,my,18 + Math.sin(frame*.04)*2.5,0,Math.PI*2);
+        emotionMatrixCtx.stroke();
+        emotionMatrixCtx.fillStyle = 'rgba(255,255,255,.72)';
+        emotionMatrixCtx.font = '10px Courier New';
+        emotionMatrixCtx.fillText(t.label, mx + 18, my - 8);
+      }
+    }
+
+    function hexToRgba(hex, alpha){
+      const clean = hex.replace('#','');
+      const bigint = parseInt(clean,16);
+      const r = (bigint >> 16) & 255;
+      const g = (bigint >> 8) & 255;
+      const b = bigint & 255;
+      return `rgba(${r},${g},${b},${alpha})`;
+    }
+
+    function resetScene(key){
+      sceneKey = key;
+      frame = 0;
+      hoverTarget = null;
+      pinnedTarget = null;
+      sceneNameEl.textContent = 'Emotional Weather';
+      sceneLabelEl.textContent = SCENES[key].label;
+      subtitleEl.textContent = SCENES[key].subtitle;
+      document.querySelectorAll('button[data-scene]').forEach(btn => btn.classList.toggle('active', btn.dataset.scene === key));
+      createSceneDecor();
+      createPeople();
+      renderPeople();
+      buildBackgroundData();
+      refreshPanel(null);
+      ensureBoxes();
+      placeBox(hoverBox,null,'');
+      placeBox(pinBox,null,'');
+    }
+
+    function animate(){
+      frame++;
+      frameCountEl.textContent = String(frame).padStart(5,'0');
+      systemStateEl.textContent = pinnedTarget ? 'LOCKED' : hoverTarget ? 'ACQUIRE' : 'SWEEP';
+
+      updatePeople();
+      hoverTarget = targetNearMouse();
+      drawBackground();
+      drawHoverFX();
+
+      hoverLabelEl.textContent = hoverTarget ? hoverTarget.label : 'NONE';
+      lockLabelEl.textContent = pinnedTarget ? pinnedTarget.label : 'NONE';
+
+      ensureBoxes();
+      if(hoverTarget && (!pinnedTarget || hoverTarget.id !== pinnedTarget.id)){
+        placeBox(hoverBox, hoverTarget, `acquiring / ${hoverTarget.label}`);
+      } else {
+        placeBox(hoverBox, null, '');
+      }
+      if(pinnedTarget){
+        placeBox(pinBox, pinnedTarget, `locked / ${pinnedTarget.label}`);
+      } else {
+        placeBox(pinBox, null, '');
+      }
+
+      moveCursor();
+      refreshPanel(pinnedTarget || hoverTarget || null);
+      requestAnimationFrame(animate);
+    }
+
+    stage.addEventListener('pointermove', e=>{
+      const rect = stage.getBoundingClientRect();
+      mouse.x = ((e.clientX - rect.left) / rect.width) * 100;
+      mouse.y = ((e.clientY - rect.top) / rect.height) * 100;
+      mouse.active = true;
+    });
+    stage.addEventListener('pointerleave', ()=>{ mouse.active = false; hoverTarget = null; });
+    stage.addEventListener('click', ()=>{
+      if(hoverTarget){
+        if(pinnedTarget && pinnedTarget.id === hoverTarget.id) pinnedTarget = null;
+        else pinnedTarget = hoverTarget;
+      } else {
+        pinnedTarget = null;
+      }
+    });
+
+    document.querySelectorAll('button[data-scene]').forEach(btn=>{
+      btn.addEventListener('click', ()=> resetScene(btn.dataset.scene));
+    });
+
+    const style = document.createElement('style');
+    style.textContent = `@keyframes rain{0%{transform:translateY(-18vh) rotate(13deg);opacity:0}15%{opacity:.55}100%{transform:translateY(115vh) rotate(13deg);opacity:0}}`;
+    document.head.appendChild(style);
+
+    resizeAll();
+    resetScene('rain');
+    animate();
+  </script>
+</body>
+</html>
