@@ -197,6 +197,31 @@
     .matrix-axis-y{right:10px;top:38px;writing-mode:vertical-rl;transform:rotate(180deg)}
     .matrix-midline{display:none}
 
+    @media (orientation:portrait) and (max-width:900px){
+      body{overflow:hidden;height:100dvh}
+      .page{
+        width:100%!important;height:100dvh!important;
+        padding:8px;gap:8px;
+        transform:none!important;position:static!important;
+        top:auto!important;left:auto!important;
+      }
+      .top{display:none}
+      .shell{
+        display:flex;flex-direction:column;
+        flex:1;min-height:0;gap:8px;
+      }
+      .monitor{flex:0 0 42%;min-height:0;border-radius:14px}
+      .stage-wrap{height:100%;min-height:0}
+      .panel{flex:1;min-height:0;display:flex;flex-direction:column;border-radius:14px}
+      .panel-body{
+        flex:1;grid-template-rows:auto auto 1fr;
+        height:auto;min-height:0;overflow:hidden;
+      }
+      .matrix-card{min-height:0}
+      .emotion-summary{gap:6px}
+      .emotion-card{padding:7px 8px}
+    }
+
   </style>
 </head>
 <body>
@@ -370,7 +395,7 @@
     const SCENES = {
       rain: {
         title:'Rainy Street', label:'RAINY STREET', subtitle:'wet asphalt / passing figures / unstable identity',
-        mode:'drift', count:42, bg:['#09101b','#172437','#0d1829'], line:'rgba(255,255,255,.16)'
+        mode:'drift', count:22, bg:['#09101b','#172437','#0d1829'], line:'rgba(255,255,255,.16)'
       },
       park: {
         title:'Park Loop', label:'PARK LOOP', subtitle:'running bodies / atmosphere / fleeting overlap',
@@ -485,6 +510,13 @@
       var vw=window.innerWidth;
       var vh=window.innerHeight;
       var page=document.querySelector('.page');
+      if(vw<vh && vw<900){
+        page.style.cssText='';
+        document.documentElement.style.overflow='';
+        document.body.style.overflow='';
+        document.body.style.height='';
+        return;
+      }
       if(vw<DESIGN_W){
         var scale=vw/DESIGN_W;
         var h=Math.round(vh/scale);
@@ -514,16 +546,16 @@
       stage.style.background = bg;
 
       if(sceneKey === 'rain'){
-        for(let i=0;i<110;i++){
+        for(let i=0;i<200;i++){
           const d = document.createElement('div');
           d.style.position='absolute';
           d.style.left=`${rand(0,100)}%`;
           d.style.top=`${rand(-120,0)}%`;
-          d.style.width='1px';
-          d.style.height=`${rand(18,40)}px`;
-          d.style.background='rgba(255,255,255,.35)';
+          d.style.width='1.5px';
+          d.style.height=`${rand(30,70)}px`;
+          d.style.background='rgba(255,255,255,.7)';
           d.style.transform='rotate(13deg)';
-          d.style.animation=`rain ${rand(1.2,2)}s linear ${rand(0,2)}s infinite`;
+          d.style.animation=`rain ${rand(0.8,1.6)}s linear ${rand(0,2)}s infinite`;
           sceneLayer.appendChild(d);
         }
       }
