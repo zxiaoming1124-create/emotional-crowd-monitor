@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=1100" />
   <title>Emotional Crowd Monitor V17</title>
   <style>
     :root{
@@ -208,26 +208,9 @@
       .stats{grid-template-columns:1fr 1fr}
       .stage-wrap{min-height:380px}
     }
-    #rotate-hint{display:none}
-    @media (orientation:portrait) and (max-width:900px){
-      #rotate-hint{
-        display:flex;position:fixed;inset:0;z-index:9999;
-        background:#0b0f14;flex-direction:column;
-        align-items:center;justify-content:center;gap:20px;
-      }
-    }
   </style>
 </head>
 <body>
-  <div id="rotate-hint">
-    <svg width="64" height="64" viewBox="0 0 64 64" fill="none" style="animation:spin 2s ease-in-out infinite alternate">
-      <rect x="12" y="8" width="40" height="28" rx="4" stroke="rgba(113,255,158,.7)" stroke-width="2" fill="none"/>
-      <path d="M44 42 Q54 42 54 32" stroke="rgba(113,255,158,.7)" stroke-width="2" fill="none" stroke-linecap="round"/>
-      <path d="M50 28 L54 32 L58 28" stroke="rgba(113,255,158,.7)" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-    </svg>
-    <p style="color:rgba(255,255,255,.7);font-family:'Courier New',monospace;font-size:13px;letter-spacing:.1em;text-align:center;margin:0">ROTATE DEVICE<br><span style="color:rgba(255,255,255,.4);font-size:11px">landscape mode required</span></p>
-    <style>@keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(90deg)}}</style>
-  </div>
   <div class="page">
     <div class="top">
       <div>
