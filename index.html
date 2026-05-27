@@ -195,6 +195,7 @@
     .matrix-axis-x,.matrix-axis-y{position:absolute;z-index:3;font-family:"Courier New",monospace;font-size:9px;color:rgba(255,255,255,.48);text-transform:uppercase;letter-spacing:.08em;pointer-events:none}
     .matrix-axis-x{left:14px;right:14px;bottom:10px;display:flex;justify-content:space-between}
     .matrix-axis-y{right:10px;top:38px;writing-mode:vertical-rl;transform:rotate(180deg)}
+    .matrix-midline{display:none}
 
     @media (max-width:1020px){
       .shell{grid-template-columns:1fr;overflow:auto}
@@ -276,10 +277,10 @@
           </div>
 
           <div class="matrix-card">
-            <div class="matrix-cap" id="matrixCap">Emotional dot field / waiting for lock</div>
+            <div class="matrix-cap" id="matrixCap">Emotional range matrix / waiting for lock</div>
             <canvas id="emotionMatrixCanvas"></canvas>
-            <div class="matrix-axis-x"><span>happy / soft pink</span><span>sad / deep blue</span></div>
-            <div class="matrix-axis-y">emotional fluctuation</div>
+                        <div class="matrix-axis-x"><span>low intensity</span><span>high intensity</span></div>
+            <div class="matrix-axis-y">emotional intensity</div>
           </div>
         </div>
       </aside>
@@ -290,25 +291,73 @@
     const TRAITS = [
       'restless','contained','euphoric','guarded','hesitant','elastic','withdrawn','radiant','fragmented','diffused','watchful','heavy'
     ];
+    const EMOTION_COLOR_SYSTEM = {
+      joy: {
+        suit: 'heart',
+        symbol: '♥',
+        name: 'joy signal',
+        short: 'joy',
+        valence: 'positive',
+        background: '#FFFFFF',
+        colors: ['#FFFFFF', '#FEE3EC', '#FFB8D2', '#FF7EA8', '#FF5B6E', '#B51F45'],
+        primary: '#FF7EA8',
+        secondary: '#FF5B6E',
+        accent: '#B51F45',
+        base: '#14060b',
+        mode: 'soft'
+      },
+      flicker: {
+        suit: 'diamond',
+        symbol: '♦',
+        name: 'flicker signal',
+        short: 'flicker',
+        valence: 'unstable',
+        background: '#FFFFFF',
+        colors: ['#FFFFFF', '#E9F7DA', '#B8D86B', '#85CB63', '#3BC2A4', '#19A9D5'],
+        primary: '#85CB63',
+        secondary: '#3BC2A4',
+        accent: '#19A9D5',
+        base: '#061315',
+        mode: 'glitch'
+      },
+      anxiety: {
+        suit: 'spade',
+        symbol: '♠',
+        name: 'anxiety signal',
+        short: 'anxiety',
+        valence: 'negative',
+        background: '#0B0D10',
+        colors: ['#0B0D10', '#FFF4A8', '#FFD84D', '#FFB547', '#FF8A2B', '#8A3B00'],
+        primary: '#FFD84D',
+        secondary: '#FFB547',
+        accent: '#FF8A2B',
+        base: '#0B0D10',
+        mode: 'wide'
+      },
+      numb: {
+        suit: 'club',
+        symbol: '♣',
+        name: 'numb signal',
+        short: 'numb',
+        valence: 'negative',
+        background: '#0A121C',
+        colors: ['#0A121C', '#D6ECF7', '#9DD4F2', '#64B8FF', '#4D6F8A', '#102033'],
+        primary: '#64B8FF',
+        secondary: '#4D6F8A',
+        accent: '#102033',
+        base: '#0A121C',
+        mode: 'heavy'
+      }
+    };
+
     const SIGNALS = [
-      {name:'heat', color:'#ff5b8c'},
-      {name:'motion', color:'#ff8a2b'},
-      {name:'noise', color:'#55b8ff'},
-      {name:'drift', color:'#7eff67'},
-      {name:'static', color:'#ffd84d'},
-      {name:'shadow', color:'#9095ff'},
-      {name:'weight', color:'#1e1e1e'}
+      {name:'joy', color:'#FF7EA8'},
+      {name:'flicker', color:'#3BC2A4'},
+      {name:'anxiety', color:'#FFD84D'},
+      {name:'numb', color:'#64B8FF'}
     ];
 
-    const PROFILES = {
-      heat:{name:'anger cluster', short:'anger', primary:'#ff6464', secondary:'#ffb24a', accent:'#7a1e1e', base:'#160a0a', mode:'sharp'},
-      motion:{name:'anxiety cluster', short:'anxiety', primary:'#ffbf4a', secondary:'#ff7d5f', accent:'#78511c', base:'#151006', mode:'wide'},
-      noise:{name:'fracture cluster', short:'fracture', primary:'#6abfff', secondary:'#8d90ff', accent:'#23386f', base:'#08111d', mode:'glitch'},
-      drift:{name:'melancholy cluster', short:'melancholy', primary:'#64b8ff', secondary:'#68d7b0', accent:'#27446f', base:'#09121b', mode:'droop'},
-      static:{name:'vigilance cluster', short:'vigilance', primary:'#ffe05d', secondary:'#ffd049', accent:'#6b5a19', base:'#151108', mode:'wide'},
-      shadow:{name:'withdrawn cluster', short:'withdrawn', primary:'#a48dff', secondary:'#ff72ad', accent:'#34265d', base:'#100918', mode:'mask'},
-      weight:{name:'numb cluster', short:'numb', primary:'#7d8b7d', secondary:'#475251', accent:'#101214', base:'#0b0c0f', mode:'heavy'}
-    };
+    const PROFILES = EMOTION_COLOR_SYSTEM;
 
     function createRng(seed){
       let s = seed >>> 0;
@@ -319,7 +368,7 @@
     }
 
     function profileForTarget(t){
-      return PROFILES[t.signal] || PROFILES.noise;
+      return PROFILES[t.signal] || PROFILES.flicker;
     }
 
     function rangeLabelForTarget(t){
@@ -400,8 +449,8 @@
     }
 
     function makePerson(i){
-      const signal = SIGNALS[i % SIGNALS.length];
-      const palette = paletteSet();
+      const signal = i === 7 ? SIGNALS.find(s => s.name === 'anxiety') : SIGNALS[i % SIGNALS.length];
+      const palette = (PROFILES[signal.name]?.colors || paletteSet()).slice(1, 6);
       const scale = rand(.66,1.42);
       const mode = SCENES[sceneKey].mode;
       let y = rand(20,82);
@@ -512,14 +561,14 @@
         glow.className='glow';
         glow.style.width=`${p.width*1.8}px`;
         glow.style.height=`${p.height*1.1}px`;
-        glow.style.background=`radial-gradient(circle, ${p.palette[0]}aa 0%, ${p.palette[1]}60 40%, transparent 74%)`;
+        glow.style.background=`radial-gradient(circle, ${p.palette[0]}cc 0%, ${p.palette[1]}90 24%, ${p.palette[2]}66 48%, ${p.palette[3]}38 68%, transparent 82%)`;
         glow.style.filter=`blur(${10+p.scale*5}px)`;
 
         const head = document.createElement('div');
         head.className='part';
         head.style.left='50%'; head.style.top='0'; head.style.transform='translateX(-50%)';
         head.style.width=`${p.width*.42}px`; head.style.height=`${p.width*.42}px`;
-        head.style.background=`linear-gradient(160deg, rgba(255,255,255,.06), ${p.palette[0]}cc 55%, rgba(0,0,0,.82))`;
+        head.style.background=`linear-gradient(160deg, rgba(255,255,255,.08) 0%, ${p.palette[0]}d8 28%, ${p.palette[1]}b8 58%, ${p.palette[2]}88 78%, rgba(0,0,0,.82) 100%)`;
         head.style.filter=`blur(${p.blur}px)`;
 
         const torso = document.createElement('div');
@@ -527,7 +576,7 @@
         torso.style.left='50%'; torso.style.top=`${p.width*.28}px`; torso.style.transform='translateX(-50%)';
         torso.style.width=`${p.width*1.02}px`; torso.style.height=`${p.height*.54}px`;
         torso.style.clipPath='polygon(18% 0%, 82% 0%, 96% 100%, 4% 100%)';
-        torso.style.background=`linear-gradient(180deg, ${p.palette[1]}dd 0%, ${p.palette[2]}88 40%, rgba(0,0,0,.85) 100%)`;
+        torso.style.background=`linear-gradient(180deg, ${p.palette[1]}e2 0%, ${p.palette[2]}b8 34%, ${p.palette[3]}88 64%, rgba(0,0,0,.85) 100%)`;
         torso.style.filter=`blur(${p.blur}px)`;
 
         const armL = document.createElement('div');
@@ -536,7 +585,7 @@
           arm.className='part';
           arm.style.top=`${p.height*.2}px`;
           arm.style.width=`${p.width*.14}px`; arm.style.height=`${p.height*.42}px`;
-          arm.style.background=`linear-gradient(180deg, ${p.palette[idx?2:0]}b0, rgba(0,0,0,.7))`;
+          arm.style.background=`linear-gradient(180deg, ${p.palette[idx?2:0]}c0 0%, ${p.palette[idx?3:1]}78 58%, rgba(0,0,0,.72) 100%)`;
           arm.style.filter=`blur(${p.blur}px)`;
           arm.style.transformOrigin='top center';
         });
@@ -549,7 +598,7 @@
           leg.className='part';
           leg.style.top=`${p.height*.66}px`;
           leg.style.width=`${p.width*.16}px`; leg.style.height=`${p.height*.26}px`;
-          leg.style.background=`linear-gradient(180deg, rgba(0,0,0,.92), ${p.palette[idx?3:1]}70)`;
+          leg.style.background=`linear-gradient(180deg, rgba(0,0,0,.92) 0%, ${p.palette[idx?3:1]}70 62%, ${p.palette[idx?4:2] || p.palette[idx?3:1]}28 100%)`;
           leg.style.filter=`blur(${p.blur}px)`;
           leg.style.transformOrigin='top center';
         });
@@ -703,7 +752,7 @@
         dominantSignalValueEl.textContent = '—';
         signalStrengthValueEl.textContent = '—';
         signalRangeValueEl.textContent = '—';
-        matrixCapEl.textContent = 'Emotional dot field / waiting for lock';
+        matrixCapEl.textContent = 'Emotional range matrix / waiting for lock';
         resizeCanvas(portraitCanvas); portraitCtx.clearRect(0,0,portraitCanvas.width,portraitCanvas.height);
         drawEmotionMatrix(null, false, null);
         return;
@@ -783,8 +832,9 @@
       const headR = 8 * avatar.scale;
       portraitCtx.fillStyle = `linear-gradient(180deg, ${palette[0]}, ${profile.accent})`;
       const headGrad = portraitCtx.createLinearGradient(avatar.cx-headR, avatar.top, avatar.cx+headR, avatar.top+headR*2);
-      headGrad.addColorStop(0, hexToRgba(palette[0], .95));
-      headGrad.addColorStop(.65, hexToRgba(palette[1] || profile.secondary, .8));
+      headGrad.addColorStop(0, hexToRgba(palette[0], .96));
+      headGrad.addColorStop(.32, hexToRgba(palette[1] || profile.secondary, .9));
+      headGrad.addColorStop(.68, hexToRgba(palette[2] || profile.accent, .78));
       headGrad.addColorStop(1, 'rgba(0,0,0,.85)');
       portraitCtx.fillStyle = headGrad;
       portraitCtx.beginPath(); portraitCtx.arc(avatar.cx, avatar.top + headR, headR, 0, Math.PI*2); portraitCtx.fill();
@@ -796,7 +846,8 @@
       const torsoY = avatar.top + headR*1.75;
       const torsoGrad = portraitCtx.createLinearGradient(torsoX, torsoY, torsoX+torsoW, torsoY+torsoH);
       torsoGrad.addColorStop(0, hexToRgba(palette[1] || profile.secondary, .92));
-      torsoGrad.addColorStop(.48, hexToRgba(palette[2] || profile.primary, .72));
+      torsoGrad.addColorStop(.34, hexToRgba(palette[2] || profile.primary, .82));
+      torsoGrad.addColorStop(.7, hexToRgba(palette[3] || profile.accent, .58));
       torsoGrad.addColorStop(1, 'rgba(0,0,0,.82)');
       portraitCtx.fillStyle = torsoGrad;
       portraitCtx.beginPath();
@@ -918,10 +969,48 @@
       }
     }
 
+
+    function lerpColor(a,b,t){
+      const ah=parseInt(a.replace('#',''),16), bh=parseInt(b.replace('#',''),16);
+      const ar=ah>>16&255, ag=ah>>8&255, ab=ah&255;
+      const br=bh>>16&255, bg=bh>>8&255, bb=bh&255;
+      const rr=Math.round(ar+(br-ar)*t), rg=Math.round(ag+(bg-ag)*t), rb=Math.round(ab+(bb-ab)*t);
+      return `rgb(${rr},${rg},${rb})`;
+    }
+
+    function mixRgbStrings(a,b,t){
+      const am = a.match(/\d+/g).map(Number);
+      const bm = b.match(/\d+/g).map(Number);
+      const rr=Math.round(am[0]+(bm[0]-am[0])*t);
+      const rg=Math.round(am[1]+(bm[1]-am[1])*t);
+      const rb=Math.round(am[2]+(bm[2]-am[2])*t);
+      return `rgb(${rr},${rg},${rb})`;
+    }
+
+    function paletteGradientColor(stops, position){
+      const p = clamp(position, 0, 1) * (stops.length - 1);
+      const i = Math.floor(p);
+      const f = p - i;
+      return lerpColor(stops[i], stops[Math.min(i + 1, stops.length - 1)], f);
+    }
+
+    function mixedFieldColor(profile, xNorm, yNorm, local, field, bias){
+      const stops = ((profile && profile.colors) || PROFILES.anxiety.colors).slice(1);
+      const p1 = clamp(xNorm * .58 + (1 - yNorm) * .12 + local * .22 + bias * .08, 0, 1);
+      const p2 = clamp((1 - yNorm) * .44 + field * .32 + local * .14 + bias * .10, 0, 1);
+      const p3 = clamp((xNorm + (1 - yNorm)) * .34 + field * .46 + local * .08, 0, 1);
+      const c1 = paletteGradientColor(stops, p1);
+      const c2 = paletteGradientColor(stops, p2);
+      const c3 = paletteGradientColor(stops, p3);
+      return mixRgbStrings(mixRgbStrings(c1, c2, .45), c3, .35);
+    }
+
     function drawEmotionMatrix(t, pinned, profile){
       const {w,h} = resizeCanvas(emotionMatrixCanvas);
       emotionMatrixCtx.clearRect(0,0,w,h);
 
+      const activeProfileForBg = profile || PROFILES.anxiety;
+      const matrixStopsForBg = (activeProfileForBg.colors || PROFILES.anxiety.colors).slice(1);
       const bg = emotionMatrixCtx.createLinearGradient(0,0,0,h);
       bg.addColorStop(0,'#101827');
       bg.addColorStop(.5,'#121d2e');
@@ -929,15 +1018,17 @@
       emotionMatrixCtx.fillStyle = bg;
       emotionMatrixCtx.fillRect(0,0,w,h);
 
-      for(let i=0;i<5;i++){
-        const gx = w * (.12 + i*.19);
-        const gy = h * (.22 + (i%2)*.28);
-        const gr = emotionMatrixCtx.createRadialGradient(gx,gy,2,gx,gy,120 + i*22);
-        gr.addColorStop(0, `rgba(${i%2?70:34}, ${i%3?120:78}, ${i%2?255:190}, .06)`);
+      for(let i=0;i<6;i++){
+        const gx = w * (.08 + i*.16);
+        const gy = h * (.18 + (i%3)*.18);
+        const ambientCol = matrixStopsForBg[i % matrixStopsForBg.length];
+        const gr = emotionMatrixCtx.createRadialGradient(gx,gy,2,gx,gy,110 + i*24);
+        gr.addColorStop(0, hexToRgba(ambientCol, .09));
+        gr.addColorStop(.45, hexToRgba(ambientCol, .035));
         gr.addColorStop(1, 'rgba(0,0,0,0)');
         emotionMatrixCtx.fillStyle = gr;
         emotionMatrixCtx.beginPath();
-        emotionMatrixCtx.arc(gx,gy,120+i*22,0,Math.PI*2);
+        emotionMatrixCtx.arc(gx,gy,110+i*24,0,Math.PI*2);
         emotionMatrixCtx.fill();
       }
 
@@ -950,21 +1041,6 @@
       const cellH = (h - padTop - padBottom) / (rows - 1);
       const baseSeed = t ? t.id * 8719 : 1187;
       const rng = createRng(baseSeed);
-
-      function lerpColor(a,b,t){
-        const ah=parseInt(a.replace('#',''),16), bh=parseInt(b.replace('#',''),16);
-        const ar=ah>>16&255, ag=ah>>8&255, ab=ah&255;
-        const br=bh>>16&255, bg=bh>>8&255, bb=bh&255;
-        const rr=Math.round(ar+(br-ar)*t), rg=Math.round(ag+(bg-ag)*t), rb=Math.round(ab+(bb-ab)*t);
-        return `rgb(${rr},${rg},${rb})`;
-      }
-      function rangeColor(xNorm, yNorm, local){
-        const stops = ['#f7a7d0','#ff7f7c','#ffd65a','#85cb63','#3bc2d8','#3f7dff','#102861'];
-        const p = clamp(xNorm*0.84 + yNorm*0.08 + local*0.08, 0, 1) * (stops.length-1);
-        const i = Math.floor(p);
-        const f = p - i;
-        return lerpColor(stops[i], stops[Math.min(i+1, stops.length-1)], f);
-      }
 
       emotionMatrixCtx.strokeStyle = 'rgba(255,255,255,.04)';
       emotionMatrixCtx.lineWidth = 1;
@@ -984,21 +1060,24 @@
       }
 
       const signalIndex = t ? SIGNALS.findIndex(s => s.name === t.signal) : 2;
-      const centerX = t ? clamp((signalIndex + 1.45) / (SIGNALS.length + 1), .1, .9) : .38;
-      const centerY = t ? clamp(.66 - (t.confidence/100)*.24 + Math.sin(frame*.015 + t.id)*.08, .14, .88) : .58;
+      const confidenceNorm = t ? clamp(t.confidence / 100, .04, .96) : .38;
+      const centerX = confidenceNorm;
+      const centerY = t ? clamp(.68 - (t.drift/100)*.28 + Math.sin(frame*.015 + t.id)*.06, .14, .88) : .58;
       const wave = t ? t.drift/100 : .35;
       const intensity = t ? t.confidence/100 : .2;
+      const palette = matrixStopsForBg;
 
       if(t){
-        for(let i=0;i<9;i++){
-          const bx = padX + (centerX*(cols-1) + (rng()-.5)*5.8) * cellW;
-          const by = padTop + (centerY*(rows-1) + (rng()-.5)*6.2) * cellH;
-          const r = (54 + rng()*86) * (pinned ? 1.08 : .78);
-          const col = rangeColor(clamp(centerX + (rng()-.5)*.15,0,1), clamp(centerY + (rng()-.5)*.12,0,1), rng());
+        for(let i=0;i<palette.length;i++){
+          const angle = (Math.PI * 2 / palette.length) * i + rng() * .4;
+          const radiusOffset = 24 + i * 11;
+          const bx = padX + centerX*(cols-1)*cellW + Math.cos(angle) * radiusOffset;
+          const by = padTop + centerY*(rows-1)*cellH + Math.sin(angle) * (radiusOffset * .74);
+          const r = (48 + intensity * 44 + rng()*30) * (pinned ? 1.08 : .84);
           const gr = emotionMatrixCtx.createRadialGradient(bx,by,1,bx,by,r);
-          gr.addColorStop(0, col.replace('rgb','rgba').replace(')',',0.34)'));
-          gr.addColorStop(.42, col.replace('rgb','rgba').replace(')',',0.12)'));
-          gr.addColorStop(1, col.replace('rgb','rgba').replace(')',',0)'));
+          gr.addColorStop(0, hexToRgba(palette[i], .12 + intensity * .12));
+          gr.addColorStop(.35, hexToRgba(palette[i], .045 + intensity * .05));
+          gr.addColorStop(1, hexToRgba(palette[i], 0));
           emotionMatrixCtx.fillStyle = gr;
           emotionMatrixCtx.beginPath();
           emotionMatrixCtx.arc(bx,by,r,0,Math.PI*2);
@@ -1019,20 +1098,29 @@
           const dist = Math.sqrt(dx*dx + dy*dy);
           const pulse = Math.sin(frame*.035 + c*.72 + r*.36 + baseSeed*.001) * .5 + .5;
           const field = clamp(1 - dist/(.16 + wave*.36), 0, 1);
-          const alpha = .08 + field*.52 + pulse*.08*intensity;
-          const radius = 3.5 + field*8.5 + pulse*1.4;
-          const col = rangeColor(xNorm, yNorm, rng()*.7);
+          const strengthAcross = xNorm;
+          const thresholdBlend = Math.pow(xNorm, 1.22);
+          const thresholdBoost = .42 + thresholdBlend * 1.04;
+          const alpha = (.03 + strengthAcross * .08) + field * (.14 + thresholdBoost * .34) + pulse * .06 * intensity;
+          const radius = 2.2 + strengthAcross * 1.6 + field * (4.4 + thresholdBoost * 5.2) + pulse * 1.05;
+          const spectrum = mixedFieldColor(activeProfileForBg, xNorm, yNorm, rng(), field, intensity);
+          const accent = mixedFieldColor(activeProfileForBg, 1 - xNorm, yNorm * .5 + pulse * .5, pulse, field, wave);
 
           const glow = emotionMatrixCtx.createRadialGradient(px+jitterX,py+jitterY,1,px+jitterX,py+jitterY,radius*2.8);
-          glow.addColorStop(0, col.replace('rgb','rgba').replace(')',`,${alpha})`));
-          glow.addColorStop(.45, col.replace('rgb','rgba').replace(')',`,${alpha*.36})`));
-          glow.addColorStop(1, col.replace('rgb','rgba').replace(')',',0)'));
+          glow.addColorStop(0, spectrum.replace('rgb','rgba').replace(')',`,${alpha})`));
+          glow.addColorStop(.42, accent.replace('rgb','rgba').replace(')',`,${alpha * (.12 + strengthAcross * .18)})`));
+          glow.addColorStop(1, spectrum.replace('rgb','rgba').replace(')',',0)'));
           emotionMatrixCtx.fillStyle = glow;
           emotionMatrixCtx.beginPath();
           emotionMatrixCtx.arc(px+jitterX,py+jitterY,radius*2.8,0,Math.PI*2);
           emotionMatrixCtx.fill();
 
-          emotionMatrixCtx.strokeStyle = col.replace('rgb','rgba').replace(')',`,${.18 + field*.26})`);
+          emotionMatrixCtx.fillStyle = accent.replace('rgb','rgba').replace(')',`,${.015 + strengthAcross * .035 + field * (.03 + thresholdBoost * .08)})`);
+          emotionMatrixCtx.beginPath();
+          emotionMatrixCtx.arc(px+jitterX,py+jitterY,radius*.34,0,Math.PI*2);
+          emotionMatrixCtx.fill();
+
+          emotionMatrixCtx.strokeStyle = spectrum.replace('rgb','rgba').replace(')',`,${.08 + strengthAcross * .08 + field * (.1 + thresholdBoost * .16)})`);
           emotionMatrixCtx.lineWidth = .8;
           emotionMatrixCtx.beginPath();
           emotionMatrixCtx.arc(px+jitterX,py+jitterY,radius*.76,0,Math.PI*2);
@@ -1043,7 +1131,8 @@
       if(t){
         const mx = padX + centerX*(cols-1)*cellW;
         const my = padTop + centerY*(rows-1)*cellH;
-        emotionMatrixCtx.strokeStyle = pinned ? 'rgba(255,214,90,.55)' : 'rgba(113,255,158,.42)';
+        const markerCol = palette[Math.min(2, palette.length-1)] || activeProfileForBg.primary;
+        emotionMatrixCtx.strokeStyle = hexToRgba(markerCol, pinned ? .74 : .56);
         emotionMatrixCtx.lineWidth = 1;
         emotionMatrixCtx.beginPath();
         emotionMatrixCtx.arc(mx,my,18 + Math.sin(frame*.04)*2.5,0,Math.PI*2);
