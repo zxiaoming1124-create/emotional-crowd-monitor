@@ -420,6 +420,7 @@
     let pinBox = null;
     let hoverTarget = null;
     let pinnedTarget = null;
+    let clickTarget = null;
     let mouse = {x:50, y:50, active:false};
 
     function rand(min,max){ return min + Math.random()*(max-min); }
@@ -1221,6 +1222,7 @@
       mouse.y = ((e.clientY - rect.top) / rect.height) * 100;
       mouse.active = true;
       hoverTarget = targetNearMouse();
+      clickTarget = hoverTarget;
     });
     stage.addEventListener('pointermove', e=>{
       const rect = stage.getBoundingClientRect();
@@ -1230,9 +1232,11 @@
     });
     stage.addEventListener('pointerleave', ()=>{ mouse.active = false; hoverTarget = null; });
     stage.addEventListener('click', ()=>{
-      if(hoverTarget){
-        if(pinnedTarget && pinnedTarget.id === hoverTarget.id) pinnedTarget = null;
-        else pinnedTarget = hoverTarget;
+      const target = hoverTarget || clickTarget;
+      clickTarget = null;
+      if(target){
+        if(pinnedTarget && pinnedTarget.id === target.id) pinnedTarget = null;
+        else pinnedTarget = target;
       } else {
         pinnedTarget = null;
       }
